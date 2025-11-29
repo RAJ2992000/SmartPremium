@@ -3,71 +3,13 @@ import pandas as pd
 import numpy as np
 import pickle
 
-# ============================
-#  Page Config
-# ============================
-st.set_page_config(
-    page_title="Insurance Premium Predictor",
-    layout="centered"
-)
-
-# ============================
-#  BACKGROUND + ANIMATION CSS
-# ============================
-page_bg = """
-<style>
-
-[data-testid="stAppViewContainer"] {
-    background-image: url('background.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
-/* Make main container fade-in smoothly */
-.main-container {
-    animation: fadeIn 1.2s ease-in-out;
-    background: rgba(255, 255, 255, 0.78);
-    padding: 30px;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    backdrop-filter: blur(5px);
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0px); }
-}
-
-/* Prediction text – BLACK */
-.prediction-text {
-    color: black !important;
-    font-size: 28px;
-    font-weight: 700;
-}
-
-</style>
-"""
-
-st.markdown(page_bg, unsafe_allow_html=True)
-
-# Wrap app inside animated container
-st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-
-
-# ============================
 # Load model
-# ============================
 with open("best_modelup.pkl", "rb") as f:
     loaded_model = pickle.load(f)
 
-st.markdown("<h1 style='text-align:center; color:#004aad;'>💰 Insurance Premium Predictor</h1>", unsafe_allow_html=True)
+st.title("Insurance Premium Predictor")
 st.write("Enter customer details to predict premium amount.")
 
-
-# ============================
-# User Inputs
-# ============================
 def user_input():
     age = st.number_input("Age", 18, 100, 35)
     gender = st.selectbox("Gender", ["Male", "Female", "Other"])
@@ -87,6 +29,7 @@ def user_input():
     exercise_frequency = st.selectbox("Exercise Frequency", ["Daily", "Weekly", "Monthly", "Rarely", "Never"])
     property_type = st.selectbox("Property Type", ["Owned", "Rented", "Leased"])
     
+    # Needed for engineered columns
     today = pd.Timestamp.today()
     
     df = pd.DataFrame([{
@@ -107,61 +50,63 @@ def user_input():
         "Smoking Status": smoking_status,
         "Exercise Frequency": exercise_frequency,
         "Property Type": property_type,
-
+        
+        # Required date breakdown
         "Policy Start Year": today.year,
         "Policy Start Month": today.month,
         "Policy Start Day": today.day,
-
+        
+        # Required
         "Policy Age (Days)": 0,
         "Days_Since_Policy_Start": 0,
-
+        
+        # Defaults (model required)
         "Customer_Feedback_Score": 1,
     }])
 
     return df
 
-
-# ============================
-# Preprocessing
-# ============================
+# -------- PREPROCESS (match model) --------
 def preprocess(df):
+    # Age Group
     df["Age Group"] = pd.cut(df["Age"], [18, 30, 45, 60, 100], labels=["18–30", "31–45", "46–60", "60+"])
+
+    # Income Bracket
     df["Income_Bracket"] = pd.cut(df["Annual Income"], [0, 30000, 60000, 100000, np.inf],
                                   labels=["Low", "Median", "High", "Very High"])
+
+    # Credit category
     df["Credit_Category"] = pd.cut(df["Credit Score"], [0, 400, 600, 800, np.inf], labels=False)
 
+    # Dependents group
     df["Dependents_Group"] = df["Number of Dependents"].apply(
         lambda x: "None" if x == 0 else "Few" if x <= 2 else "Many"
     )
 
+    # Age × Health
     df["Age_x_Health"] = df["Age"] * df["Health Score"]
+
+    # Credit × Claims
     df["CreditScore_x_PrevClaims"] = df["Credit Score"] * df["Previous Claims"]
 
+    # Flags
     df["Is_Smoker"] = df["Smoking Status"].apply(lambda x: 1 if x == "Yes" else 0)
     df["Low_Credit_Score"] = df["Credit Score"].apply(lambda x: 1 if x < 600 else 0)
     df["Multiple_Claims"] = df["Previous Claims"].apply(lambda x: 1 if x > 2 else 0)
 
+    # Exercise score
     exercise_map = {"Daily": 4, "Weekly": 3, "Monthly": 2, "Rarely": 1, "Never": 0}
     df["Exercise_Freq_Score"] = df["Exercise Frequency"].map(exercise_map)
 
+    # Income × Credit
     df["Income_x_Credit"] = df["Annual Income"] * df["Credit Score"]
 
     return df
 
-
-# ============================
-# Prediction
-# ============================
+# --------- PREDICT ---------
 input_df = user_input()
 
 if st.button("Estimate Premium"):
     final_df = preprocess(input_df)
     prediction = loaded_model.predict(final_df)[0]
-
-    st.markdown(
-        f"<p class='prediction-text'>Estimated Premium: ₹{prediction:,.2f}</p>",
-        unsafe_allow_html=True
-    )
-
-# Close main container
-st.markdown("</div>", unsafe_allow_html=True)
+    st.success(f"Estimated Premium: ₹{prediction:,.2f}")
