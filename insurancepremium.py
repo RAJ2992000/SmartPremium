@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 
 # Load model
-with open("best_model_new.pkl", "rb") as f:
+with open("best_model.pkl", "rb") as f:
     loaded_model = pickle.load(f)
 
 st.title("Insurance Premium Predictor")
