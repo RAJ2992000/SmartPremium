@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 
 # Load model
-with open("best_model.pkl", "rb") as f:
+with open("best_modelup.pkl", "rb") as f:
     loaded_model = pickle.load(f)
 
 st.title("Insurance Premium Predictor")
@@ -110,3 +110,4 @@ if st.button("Estimate Premium"):
     final_df = preprocess(input_df)
     prediction = loaded_model.predict(final_df)[0]
     st.success(f"Estimated Premium: ₹{prediction:,.2f}")
+
