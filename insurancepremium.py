@@ -1,3 +1,4 @@
+from json import load
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -37,13 +38,27 @@ add_bg_image()
 # ============================================
 @st.cache_resource
 def load_model():
-    with open("best_model_new.pkl", "rb") as f:
-        return pickle.load(f)
+    import pickle
+    import os
 
-model = load_model()
+    model_path = "best_model_new.pkl"
+    if not os.path.exists(model_path):
+        st.error("Model file not found! Upload best_model_new.pkl to the root folder.")
+        return None
+    
+    try:
+        with open(model_path, "rb") as f:
+            return pickle.load(f)
+    except Exception as e:
+        st.error(f"Model loading failed: {e}")
+        return None
+
+loaded_model = load_model()
+if loaded_model is None:
+    st.stop()
 
 # ============================================
-# HEADER WITH PREMIUM FONT + SHADOW
+# HEADER
 # ============================================
 st.markdown(
     """
@@ -157,19 +172,17 @@ df["Income_x_Credit"] = annual_income * credit_score
 # ============================================
 if predict_button:
 
-    pred = model.predict(df)[0]
+    pred = loaded_model.predict(df)[0]
     pred = round(pred, 2)
 
     st.balloons()
 
     st.markdown(
-        st.markdown(
-    f"""
-    <div style='text-align:center; margin-top:40px;'>
-        <h2 style='color:#ffdd57; text-shadow:2px 2px 6px black;'>💰 Estimated Premium Amount</h2>
-        <h1 style='font-size:60px; color:#000000; font-weight:900; text-shadow:2px 2px 6px #ffffff;'>₹ {pred}</h1>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+        f"""
+        <div style='text-align:center; margin-top:40px;'>
+            <h2 style='color:#ffdd57; text-shadow:2px 2px 6px black;'>💰 Estimated Premium Amount</h2>
+            <h1 style='font-size:60px; color:#000000; font-weight:900; text-shadow:2px 2px 6px #ffffff;'>₹ {pred}</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
